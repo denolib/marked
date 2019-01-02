@@ -4,6 +4,13 @@
  * https://github.com/markedjs/marked
  */
 
+// Definitions adapted from
+// https://github.com/DefinitelyTyped/DefinitelyTyped/blob/master/types/marked/index.d.ts
+// Original Definitions by: William Orr <https://github.com/worr>
+//                 BendingBender <https://github.com/BendingBender>
+//                 CrossR <https://github.com/CrossR>
+//                 Mike Wickett <https://github.com/mwickett>
+
 "use strict";
 
 interface MarkedOptions {

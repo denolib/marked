@@ -1160,7 +1160,7 @@ class Renderer {
     return html;
   }
 
-  heading(text: string, level: number, raw: string, slugger: Slugger) {
+  heading(text: string, level: number, raw: string, slugger?: Slugger) {
     if (this.options.headerIds) {
       return `<h${level} id="${this.options.headerPrefix}${slugger.slug(raw)}">${text}</h${level}>\n`;
     }

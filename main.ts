@@ -111,11 +111,12 @@ interface Link {
   title: string;
 }
 
-type TokensList = Token[] & {
+type TokensList = [] & Token[] & {
   links: {
       [key: string]: { href: string; title: string; }
   }
 };
+
 
 type Token =
   Tokens.Space
@@ -132,7 +133,10 @@ type Token =
   | Tokens.ListEnd
   | Tokens.Paragraph
   | Tokens.HTML
-  | Tokens.Text;
+  | Tokens.Text
+  | Tokens.ListStart;
+
+type AlignPosition = "center" | "left" | "right" | null
 
 namespace Tokens {
   export interface Space {
@@ -155,7 +159,7 @@ namespace Tokens {
   export interface Table {
       type: 'table';
       header: string[];
-      align: Array<'center' | 'left' | 'right' | null>;
+      align: Array<AlignPosition>;
       cells: string[][];
   }
 
@@ -353,13 +357,15 @@ class Lexer {
   constructor(options?: MarkedOptions) {
     this.tokens = [] as TokensList;
     this.tokens.links = Object.create(null);
-    this.options = options || marked.defaults;
+    
+
+    this.options = options || (marked.defaults as unknown as MarkedOptions);
     this.rules = block.normal;
 
-    if (this.options.pedantic) {
+    if (this.options?.pedantic) {
       this.rules = block.pedantic;
-    } else if (this.options.gfm) {
-      if (this.options.tables) {
+    } else if (this.options?.gfm) {
+      if (this.options?.tables) {
         this.rules = block.tables;
       } else {
         this.rules = block.gfm;
@@ -421,9 +427,9 @@ class Lexer {
         cap = cap[0].replace(/^ {4}/gm, '');
         this.tokens.push({
           type: 'code',
-          text: !this.options.pedantic
+          text: !this.options?.pedantic 
             ? rtrim(cap, '\n')
-            : cap
+            : cap 
         });
         continue;
       }
@@ -453,29 +459,29 @@ class Lexer {
       // table no leading pipe (gfm)
       if (top && (cap = this.rules.nptable.exec(src))) {
         item = {
-          type: 'table',
+          type: 'table' as 'table',
           header: splitCells(cap[1].replace(/^ *| *\| *$/g, '')),
           align: cap[2].replace(/^ *|\| *$/g, '').split(/ *\| */),
           cells: cap[3] ? cap[3].replace(/\n$/, '').split('\n') : []
-        };
+        } as Tokens.Table;
 
         if (item.header.length === item.align.length) {
           src = src.substring(cap[0].length);
 
           for (i = 0; i < item.align.length; i++) {
-            if (/^ *-+: *$/.test(item.align[i])) {
+            if (/^ *-+: *$/.test(item.align[i] as string)) {
               item.align[i] = 'right';
-            } else if (/^ *:-+: *$/.test(item.align[i])) {
+            } else if (/^ *:-+: *$/.test(item.align[i] as string)) {
               item.align[i] = 'center';
-            } else if (/^ *:-+ *$/.test(item.align[i])) {
+            } else if (/^ *:-+ *$/.test(item.align[i] as string)) {
               item.align[i] = 'left';
             } else {
               item.align[i] = null;
             }
           }
 
-          for (i = 0; i < item.cells.length; i++) {
-            item.cells[i] = splitCells(item.cells[i], item.header.length);
+          for (i = 0; i < item.cells.length; i++) { //NOTE: risky conversion with toString? -@olaven
+            item.cells[i] = splitCells(item.cells[i].toString(), item.header.length);
           }
 
           this.tokens.push(item);
@@ -528,7 +534,8 @@ class Lexer {
           loose: false
         };
 
-        this.tokens.push(listStart);
+
+        this.tokens.push(listStart as Tokens.ListStart);
 
         // Get each top-level item.
         cap = cap[0].match(this.rules.item);
@@ -550,7 +557,7 @@ class Lexer {
           // list item contains. Hacky.
           if (~item.indexOf('\n ')) {
             space -= item.length;
-            item = !this.options.pedantic
+            item = !this.options?.pedantic
               ? item.replace(new RegExp(`^ {1,${space}}`, 'gm'), '')
               : item.replace(/^ {1,4}/gm, '');
           }
@@ -560,7 +567,7 @@ class Lexer {
           if (i !== l - 1) {
             b = block.bullet.exec(cap[i + 1])[0];
             if (bull.length > 1 ? b.length === 1
-              : (b.length > 1 || (this.options.smartLists && b !== bull))) {
+              : (b.length > 1 || (this.options?.smartLists && b !== bull))) {
               src = cap.slice(i + 1).join('\n') + src;
               i = l - 1;
             }
@@ -592,7 +599,8 @@ class Lexer {
             task: istask,
             checked: ischecked,
             loose
-          };
+          } as unknown as Tokens.ListStart;
+          
 
           listItems.push(t);
           this.tokens.push(t);
@@ -609,7 +617,7 @@ class Lexer {
           l = listItems.length;
           i = 0;
           for (; i < l; i++) {
-            listItems[i].loose = true;
+            (listItems[i] as any).loose = true;
           }
         }
 
@@ -624,10 +632,10 @@ class Lexer {
       if (cap = this.rules.html.exec(src)) {
         src = src.substring(cap[0].length);
         this.tokens.push({
-          type: this.options.sanitize
+          type: this.options?.sanitize
             ? 'paragraph'
             : 'html',
-          pre: !this.options.sanitizer
+          pre: !this.options?.sanitizer
             && (cap[1] === 'pre' || cap[1] === 'script' || cap[1] === 'style'),
           text: cap[0]
         } as Token);
@@ -651,7 +659,7 @@ class Lexer {
       // table (gfm)
       if (top && (cap = this.rules.table.exec(src))) {
         item = {
-          type: 'table',
+          type: 'table' as 'table',
           header: splitCells(cap[1].replace(/^ *| *\| *$/g, '')),
           align: cap[2].replace(/^ *|\| *$/g, '').split(/ *\| */),
           cells: cap[3] ? cap[3].replace(/(?: *\| *)?\n$/, '').split('\n') : []
@@ -857,9 +865,9 @@ class InlineLexer {
   };
 
   static escapes = 
-    (text?: string) => text ? text.replace(InlineLexer.rules._escapes, '$1') : text;
+    (text: string): string => text ? text.replace(InlineLexer.rules._escapes, '$1') : text;
 
-  options: MarkedOptions;
+  options: MarkedOptions | undefined;
   links: {[key: string]: Link};
   rules: Rules;
   renderer: any;
@@ -867,20 +875,20 @@ class InlineLexer {
   inRawBlock: any;
 
   constructor(links: {[key: string]: Link}, options?: MarkedOptions) {
-    this.options = options || marked.defaults;
+    this.options = options;
     this.links = links;
     this.rules = inline.normal;
-    this.renderer = this.options.renderer || new Renderer();
+    this.renderer = this.options?.renderer || new Renderer();
     this.renderer.options = this.options;
 
     if (!this.links) {
       throw new Error('Tokens array requires a `links` property.');
     }
 
-    if (this.options.pedantic) {
+    if (this.options?.pedantic) {
       this.rules = inline.pedantic;
-    } else if (this.options.gfm) {
-      if (this.options.breaks) {
+    } else if (this.options?.gfm) {
+      if (this.options?.breaks) {
         this.rules = inline.breaks;
       } else {
         this.rules = inline.gfm;
@@ -923,9 +931,9 @@ class InlineLexer {
         }
 
         src = src.substring(cap[0].length);
-        out += this.options.sanitize
-          ? this.options.sanitizer
-            ? this.options.sanitizer(cap[0])
+        out += this.options?.sanitize
+          ? this.options?.sanitizer
+            ? this.options?.sanitizer(cap[0])
             : escape(cap[0])
           : cap[0];
         continue;
@@ -936,7 +944,7 @@ class InlineLexer {
         src = src.substring(cap[0].length);
         this.inLink = true;
         href = cap[2];
-        if (this.options.pedantic) {
+        if (this.options?.pedantic) {
           link = /^([^'"]*[^\s])\s+(['"])(.*)\2/.exec(href);
 
           if (link) {
@@ -1083,7 +1091,7 @@ class InlineLexer {
    */
 
   smartypants(text: string) {
-    if (!this.options.smartypants) return text;
+    if (!this.options?.smartypants) return text;
     return text
       // em-dashes
       .replace(/---/g, '\u2014')
@@ -1106,7 +1114,7 @@ class InlineLexer {
    */
 
   mangle(text: string) {
-    if (!this.options.mangle) return text;
+    if (!this.options?.mangle) return text;
     let out = '';
     const l = text.length;
     let i = 0;
@@ -1132,13 +1140,15 @@ class Renderer {
   options: MarkedOptions;
 
   constructor(options?: MarkedOptions) {
-    this.options = options || marked.defaults;
+    this.options = options || (marked.defaults as unknown as MarkedOptions);
   }
 
   code(code: string, infostring: string, escaped: boolean) {
-    const lang = (infostring || '').match(/\S*/)[0];
-    if (this.options.highlight) {
-      const out = this.options.highlight(code, lang);
+    const lang = infostring.match(/\S*/)[0];
+  
+    
+    if (this.options?.highlight) {
+      const out = this.options?.highlight(code, lang);
       if (out != null && out !== code) {
         escaped = true;
         code = out;
@@ -1149,7 +1159,7 @@ class Renderer {
       return `<pre><code>${escaped ? code : escape(code, true)}</code></pre>`;
     }
 
-    return `<pre><code class="${this.options.langPrefix}${escape(lang, true)}">${escaped ? code : escape(code, true)}</code></pre>\n`;
+    return `<pre><code class="${this.options?.langPrefix}${escape(lang, true)}">${escaped ? code : escape(code, true)}</code></pre>\n`;
   }
 
   blockquote(quote: string) {
@@ -1161,15 +1171,15 @@ class Renderer {
   }
 
   heading(text: string, level: number, raw: string, slugger?: Slugger) {
-    if (this.options.headerIds) {
-      return `<h${level} id="${this.options.headerPrefix}${slugger.slug(raw)}">${text}</h${level}>\n`;
+    if (this.options?.headerIds) {
+      return `<h${level} id="${this.options?.headerPrefix}${slugger.slug(raw)}">${text}</h${level}>\n`;
     }
     // ignore IDs
     return `<h${level}>${text}</h${level}>\n`;
   }
 
   hr() {
-    return this.options.xhtml ? '<hr/>\n' : '<hr>\n';
+    return this.options?.xhtml ? '<hr/>\n' : '<hr>\n';
   }
 
   list(body: string, ordered: boolean, start: number) {
@@ -1183,7 +1193,7 @@ class Renderer {
   }
 
   checkbox(checked: boolean) {
-    return `<input ${checked ? 'checked="" ' : ''}disabled="" type="checkbox"${this.options.xhtml ? ' /' : ''}> `;
+    return `<input ${checked ? 'checked="" ' : ''}disabled="" type="checkbox"${this.options?.xhtml ? ' /' : ''}> `;
   }
 
   paragraph(text: string) {
@@ -1222,7 +1232,7 @@ class Renderer {
   }
 
   br() {
-    return this.options.xhtml ? '<br/>' : '<br>';
+    return this.options?.xhtml ? '<br/>' : '<br>';
   }
 
   del(text: string) {
@@ -1230,7 +1240,7 @@ class Renderer {
   }
 
   link(href: string, title: string, text: string) {
-    href = cleanUrl(this.options.sanitize, this.options.baseUrl, href);
+    href = cleanUrl(this.options?.sanitize, this.options?.baseUrl, href);
     if (href === null) {
       return text;
     }
@@ -1243,7 +1253,7 @@ class Renderer {
   }
 
   image(href: string, title: string, text: string) {
-    href = cleanUrl(this.options.sanitize, this.options.baseUrl, href);
+    href = cleanUrl(this.options?.sanitize, this.options?.baseUrl, href);
     if (href === null) {
       return text;
     }
@@ -1252,7 +1262,7 @@ class Renderer {
     if (title) {
       out += ` title="${title}"`;
     }
-    out += this.options.xhtml ? '/>' : '>';
+    out += this.options?.xhtml ? '/>' : '>';
     return out;
   }
 
@@ -1307,8 +1317,8 @@ class Parser {
     this.tokens = [];
     this.token = null;
     this.options = options || marked.defaults;
-    this.options.renderer = this.options.renderer || new Renderer();
-    this.renderer = this.options.renderer;
+    this.options?.renderer = this.options?.renderer || new Renderer();
+    this.renderer = this.options?.renderer;
     this.renderer.options = this.options;
     this.slugger = new Slugger();
   }
@@ -1469,7 +1479,7 @@ class Parser {
       }
       default: {
         const errMsg = `Token with "${this.token.type}" type was not found.`;
-        if (this.options.silent) {
+        if (this.options?.silent) {
           console.log(errMsg);
         } else {
           throw new Error(errMsg);
@@ -1665,7 +1675,7 @@ function splitCells(tableRow: string, count?: number) {
   if (cells.length > count) {
     cells.splice(count);
   } else {
-    while (cells.length < count) cells.push('');
+    while (count && cells.length < count) cells.push('');
   }
 
   for (; i < cells.length; i++) {
@@ -1707,7 +1717,7 @@ type MarkedCallback = (error: any | undefined, parseResult?: string) => void;
  * Marked
  */
 function marked(src: string): string;
-function marked(src: string, optOrCallback: MarkedOptions | MarkedCallback)
+function marked(src: string, optOrCallback: MarkedOptions | MarkedCallback): void; 
 function marked(src: string, optOrCallback?: MarkedOptions | MarkedCallback, callback?: MarkedCallback): string | void {
   // throw error in case of non string input
   if (typeof src === 'undefined' || src === null) {
@@ -1790,10 +1800,12 @@ function marked(src: string, optOrCallback?: MarkedOptions | MarkedCallback, cal
   }
   try {
     if (opt) opt = merge({}, marked.defaults, opt);
+    //@ts-ignore
     return Parser.parse(Lexer.lex(src, opt), opt);
   } catch (e) {
     e.message += '\nPlease report this to https://github.com/markedjs/marked.';
-    if ((opt || marked.defaults).silent) {
+    //@ts-ignore
+    if (opt || (marked.defaults).silent) {
       return `<p>An error occurred:</p><pre>${escape(`${e.message}`, true)}</pre>`;
     }
     throw e;

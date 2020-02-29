@@ -346,7 +346,7 @@ class Lexer {
   /**
    * Static Lex Method
    */
-  static lex(src: string, options?: MarkedOptions) {
+  static lex(src: string, options?: MarkedOptions): TokensList {
     const lexer = new Lexer(options);
     return lexer.lex(src);
   };
@@ -460,7 +460,7 @@ class Lexer {
       if (top && (cap = this.rules.nptable.exec(src))) {
         item = {
           type: 'table' as 'table',
-          header: splitCells(cap[1].replace(/^ *| *\| *$/g, '')),
+          header: splitCells(cap[1].replace(/^ *| *\| *$/g, ''), 0),//NOTE: "0" added by me, check this if code does not work. Used to be nothing -> compile error //@olaven
           align: cap[2].replace(/^ *|\| *$/g, '').split(/ *\| */),
           cells: cap[3] ? cap[3].replace(/\n$/, '').split('\n') : []
         } as Tokens.Table;
@@ -660,7 +660,7 @@ class Lexer {
       if (top && (cap = this.rules.table.exec(src))) {
         item = {
           type: 'table' as 'table',
-          header: splitCells(cap[1].replace(/^ *| *\| *$/g, '')),
+          header: splitCells(cap[1].replace(/^ *| *\| *$/g, ''), 0), //NOTE: "0" added by me, check this if code does not work. Used to be nothing -> compile error //@olaven
           align: cap[2].replace(/^ *|\| *$/g, '').split(/ *\| */),
           cells: cap[3] ? cap[3].replace(/(?: *\| *)?\n$/, '').split('\n') : []
         };
@@ -1144,9 +1144,10 @@ class Renderer {
   }
 
   code(code: string, infostring: string, escaped: boolean) {
+
+    //@ts-ignore: may be null
     const lang = infostring.match(/\S*/)[0];
-  
-    
+
     if (this.options?.highlight) {
       const out = this.options?.highlight(code, lang);
       if (out != null && out !== code) {
@@ -1170,9 +1171,9 @@ class Renderer {
     return html;
   }
 
-  heading(text: string, level: number, raw: string, slugger?: Slugger) {
+  heading(text: string, level: number, raw: string, slugger: Slugger) {
     if (this.options?.headerIds) {
-      return `<h${level} id="${this.options?.headerPrefix}${slugger.slug(raw)}">${text}</h${level}>\n`;
+      return `<h${level} id="${this.options.headerPrefix}${slugger.slug(raw)}">${text}</h${level}>\n`;
     }
     // ignore IDs
     return `<h${level}>${text}</h${level}>\n`;
@@ -1210,6 +1211,7 @@ class Renderer {
     return `<tr>\n${content}</tr>\n`;
   }
 
+  //@ts-ignore
   tablecell(content: string, {header, align}) {
     const type = header ? 'th' : 'td';
     const tag = align
@@ -1240,7 +1242,7 @@ class Renderer {
   }
 
   link(href: string, title: string, text: string) {
-    href = cleanUrl(this.options?.sanitize, this.options?.baseUrl, href);
+    href = cleanUrl(this.options.sanitize as boolean, this.options.baseUrl!, href) as string;
     if (href === null) {
       return text;
     }
@@ -1253,7 +1255,7 @@ class Renderer {
   }
 
   image(href: string, title: string, text: string) {
-    href = cleanUrl(this.options?.sanitize, this.options?.baseUrl, href);
+    href = cleanUrl(this.options.sanitize!, this.options.baseUrl!, href) as string;
     if (href === null) {
       return text;
     }
@@ -1316,8 +1318,8 @@ class Parser {
   constructor(options?: MarkedOptions) {
     this.tokens = [];
     this.token = null;
-    this.options = options || marked.defaults;
-    this.options?.renderer = this.options?.renderer || new Renderer();
+    this.options = options || (marked.defaults as unknown as MarkedOptions);
+    this.options.renderer = this.options?.renderer || new Renderer();
     this.renderer = this.options?.renderer;
     this.renderer.options = this.options;
     this.slugger = new Slugger();
@@ -1550,7 +1552,7 @@ escape.replacements = {
   '>': '&gt;',
   '"': '&quot;',
   "'": '&#39;'
-};
+} as any;
 
 escape.escapeTestNoEncode = /[<>"']|&(?!#?\w+;)/;
 escape.escapeReplaceNoEncode = /[<>"']|&(?!#?\w+;)/g;
@@ -1569,11 +1571,11 @@ function unescape(html: string) {
   });
 }
 
-function edit(regex, opt?: string) {
+function edit(regex: any, opt?: string) {
   regex = regex.source || regex;
   opt = opt || '';
   return {
-    replace(name, val) {
+    replace(name: any, val: any) {
       val = val.source || val;
       val = val.replace(/(^|[^\[])\^/g, '$1');
       regex = regex.replace(name, val);
@@ -1585,7 +1587,7 @@ function edit(regex, opt?: string) {
   };
 }
 
-function cleanUrl(sanitize: boolean, base: string, href: string) {
+function cleanUrl(sanitize: boolean, base: string, href: string): string | null {
   if (sanitize) {
     try {
       var prot = decodeURIComponent(unescape(href))
@@ -1630,13 +1632,13 @@ function resolveUrl(base: string, href: string) {
     return base + href;
   }
 }
-var baseUrls = {};
+var baseUrls: any = {} 
 var originIndependentUrl = /^$|^[a-z][a-z0-9+.-]*:|^[?#]/i;
 
 function noop() {}
 noop.exec = noop;
 
-function merge(obj, ...args: {[key: string]: any}[]) {
+function merge(obj: any, ...args: {[key: string]: any}[]) {
   let i = 0;
   let target;
   let key;
@@ -1653,7 +1655,7 @@ function merge(obj, ...args: {[key: string]: any}[]) {
   return obj;
 }
 
-function splitCells(tableRow: string, count?: number) {
+function splitCells(tableRow: string, count: number) {
   // ensure that every cell-delimiting pipe has a space
   // before it to distinguish it from an escaped pipe
   const row = tableRow.replace(/\|/g, (match, offset, str) => {
@@ -1727,24 +1729,26 @@ function marked(src: string, optOrCallback?: MarkedOptions | MarkedCallback, cal
     throw new Error(`marked(): input parameter is of type ${Object.prototype.toString.call(src)}, string expected`);
   }
 
-  let opt: MarkedOptions;
+  let opt: MarkedOptions; // | null;
 
   if (callback || typeof optOrCallback === "function") {
+    
     if (!callback) {
       callback = optOrCallback as MarkedCallback;
-      opt = null;
+      //opt = null;
     }
 
     opt = merge({}, marked.defaults, optOrCallback || {}) as MarkedOptions;
 
     const highlight = opt.highlight;
     let tokens: TokensList;
-    let pending;
+    let pending: number;
     let i = 0;
 
     try {
       tokens = Lexer.lex(src, opt);
     } catch (e) {
+      
       return callback(e);
     }
 
@@ -1752,8 +1756,9 @@ function marked(src: string, optOrCallback?: MarkedOptions | MarkedCallback, cal
 
     const done = (err?: any) => {
       if (err) {
-        opt.highlight = highlight;
-        return callback(err);
+        if (opt) opt.highlight = highlight;
+        //@ts-ignore: callback not always defined
+        callback(err)
       }
 
       let out;
@@ -1766,8 +1771,11 @@ function marked(src: string, optOrCallback?: MarkedOptions | MarkedCallback, cal
 
       opt.highlight = highlight;
 
+      //@ts-ignore: callback not always defined
       return err
+        //@ts-ignore: callback not always defined
         ? callback(err)
+        //@ts-ignore: callback not always defined
         : callback(null, out);
     };
 
@@ -1780,11 +1788,14 @@ function marked(src: string, optOrCallback?: MarkedOptions | MarkedCallback, cal
     if (!pending) return done();
 
     for (; i < tokens.length; i++) {
-      (token => {
+      (t => {
+        
+        const token = (t as Token); //TODO: why is array not already correctly typed? //@olaven
         if (token.type !== 'code') {
           return --pending || done();
         }
-        return highlight(token.text, token.lang, (err, code) => {
+        
+        return highlight(token.text, token.lang!, (err: any, code: string) => {
           if (err) return done(err);
           if (code == null || code === token.text) {
             return --pending || done();
@@ -1799,6 +1810,7 @@ function marked(src: string, optOrCallback?: MarkedOptions | MarkedCallback, cal
     return;
   }
   try {
+    //@ts-ignore: is defined in scope, but TS complains //@olaven
     if (opt) opt = merge({}, marked.defaults, opt);
     //@ts-ignore
     return Parser.parse(Lexer.lex(src, opt), opt);

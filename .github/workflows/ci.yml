@@ -1,0 +1,21 @@
+name: Deno CI
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    name: Test on Deno ${{ matrix.deno-version }} and OS ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        deno-version: [0.35]
+        os: [ubuntu-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@master
+      - uses: denolib/setup-deno@master
+        with:
+          deno-version: ${{ matrix.deno-version }}
+      - run: deno run main_test.ts

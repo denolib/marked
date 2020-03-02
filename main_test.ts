@@ -1,6 +1,6 @@
 import marked from "./main.ts";
-import { test, runTests } from "https://deno.land/std@v0.3.2/testing/mod.ts";
-import { assert } from "https://deno.land/std@v0.3.2/testing/asserts.ts";
+import { test, runTests } from "https://deno.land/std@v0.35.0/testing/runner.ts";
+import { assert } from "https://deno.land/std@v0.35.0/testing/asserts.ts";
 
 test({
   name: "[Marked] Test heading ID functionality - add id attribute by default",

@@ -1,6 +1,6 @@
 import marked from "./main.ts";
-import { test, runTests } from "https://deno.land/std@v0.3.2/testing/mod.ts";
-import { assert } from "https://deno.land/std@v0.3.2/testing/asserts.ts";
+import { assert } from "https://deno.land/std/testing/asserts.ts";
+const { test, runTests } = Deno;
 
 test({
   name: "[Marked] Test heading ID functionality - add id attribute by default",
@@ -17,6 +17,7 @@ test({
     "[Marked] Test heading ID functionality - NOT add id attribute when options set false",
   fn() {
     var renderer = new marked.Renderer({ headerIds: false });
+    //@ts-ignore: slugger is not passed
     var header = renderer.heading("test", 1, "test");
     assert(header === "<h1>test</h1>\n");
   }
@@ -94,7 +95,7 @@ test({
     '[Marked] Test paragraph token type - should use the "paragraph" type on top level',
   fn() {
     const md = "A Paragraph.\n\n> A blockquote\n\n- list item\n";
-    const tokens = marked.lexer(md);
+    const tokens = marked.lexer(md) as any;
     assert(tokens[0].type === "paragraph");
     assert(tokens[3].type === "paragraph");
     assert(tokens[7].type === "text");

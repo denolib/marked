@@ -352,7 +352,7 @@ class Lexer {
   };
 
   tokens: TokensList;
-  options?: MarkedOptions;
+  options: MarkedOptions;
   rules: Rules;
   constructor(options?: MarkedOptions) {
     this.tokens = [] as TokensList;
@@ -362,10 +362,10 @@ class Lexer {
     this.options = options || (marked.defaults as unknown as MarkedOptions);
     this.rules = block.normal;
 
-    if (this.options?.pedantic) {
+    if (this.options.pedantic) {
       this.rules = block.pedantic;
     } else if (this.options?.gfm) {
-      if (this.options?.tables) {
+      if (this.options.tables) {
         this.rules = block.tables;
       } else {
         this.rules = block.gfm;
@@ -427,7 +427,7 @@ class Lexer {
         cap = cap[0].replace(/^ {4}/gm, '');
         this.tokens.push({
           type: 'code',
-          text: !this.options?.pedantic 
+          text: !this.options.pedantic 
             ? rtrim(cap, '\n')
             : cap 
         });
@@ -460,7 +460,7 @@ class Lexer {
       if (top && (cap = this.rules.nptable.exec(src))) {
         item = {
           type: 'table' as 'table',
-          header: splitCells(cap[1].replace(/^ *| *\| *$/g, ''), 0),//NOTE: "0" added by me, check this if code does not work. Used to be nothing -> compile error //@olaven
+          header: splitCells(cap[1].replace(/^ *| *\| *$/g, '')),
           align: cap[2].replace(/^ *|\| *$/g, '').split(/ *\| */),
           cells: cap[3] ? cap[3].replace(/\n$/, '').split('\n') : []
         } as Tokens.Table;
@@ -480,7 +480,7 @@ class Lexer {
             }
           }
 
-          for (i = 0; i < item.cells.length; i++) { //NOTE: risky conversion with toString? -@olaven
+          for (i = 0; i < item.cells.length; i++) { 
             item.cells[i] = splitCells(item.cells[i].toString(), item.header.length);
           }
 
@@ -550,6 +550,7 @@ class Lexer {
 
           // Remove the list item's bullet
           // so it is seen as the next token.
+
           space = item.length;
           item = item.replace(/^ *([*+-]|\d+\.) */, '');
 
@@ -557,7 +558,7 @@ class Lexer {
           // list item contains. Hacky.
           if (~item.indexOf('\n ')) {
             space -= item.length;
-            item = !this.options?.pedantic
+            item = !this.options.pedantic
               ? item.replace(new RegExp(`^ {1,${space}}`, 'gm'), '')
               : item.replace(/^ {1,4}/gm, '');
           }
@@ -567,7 +568,7 @@ class Lexer {
           if (i !== l - 1) {
             b = block.bullet.exec(cap[i + 1])[0];
             if (bull.length > 1 ? b.length === 1
-              : (b.length > 1 || (this.options?.smartLists && b !== bull))) {
+              : (b.length > 1 || (this.options.smartLists && b !== bull))) {
               src = cap.slice(i + 1).join('\n') + src;
               i = l - 1;
             }
@@ -660,7 +661,7 @@ class Lexer {
       if (top && (cap = this.rules.table.exec(src))) {
         item = {
           type: 'table' as 'table',
-          header: splitCells(cap[1].replace(/^ *| *\| *$/g, ''), 0), //NOTE: "0" added by me, check this if code does not work. Used to be nothing -> compile error //@olaven
+          header: splitCells(cap[1].replace(/^ *| *\| *$/g, '')),
           align: cap[2].replace(/^ *|\| *$/g, '').split(/ *\| */),
           cells: cap[3] ? cap[3].replace(/(?: *\| *)?\n$/, '').split('\n') : []
         };
@@ -875,7 +876,7 @@ class InlineLexer {
   inRawBlock: any;
 
   constructor(links: {[key: string]: Link}, options?: MarkedOptions) {
-    this.options = options;
+    this.options = options || (marked.defaults as unknown as MarkedOptions);
     this.links = links;
     this.rules = inline.normal;
     this.renderer = this.options?.renderer || new Renderer();
@@ -1655,7 +1656,7 @@ function merge(obj: any, ...args: {[key: string]: any}[]) {
   return obj;
 }
 
-function splitCells(tableRow: string, count: number) {
+function splitCells(tableRow: string, count: number | undefined = undefined) {
   // ensure that every cell-delimiting pipe has a space
   // before it to distinguish it from an escaped pipe
   const row = tableRow.replace(/\|/g, (match, offset, str) => {
@@ -1674,7 +1675,7 @@ function splitCells(tableRow: string, count: number) {
   const cells = row.split(/ \|/);
   let i = 0;
 
-  if (cells.length > count) {
+  if (count && cells.length > count) {
     cells.splice(count);
   } else {
     while (count && cells.length < count) cells.push('');
@@ -1790,7 +1791,7 @@ function marked(src: string, optOrCallback?: MarkedOptions | MarkedCallback, cal
     for (; i < tokens.length; i++) {
       (t => {
         
-        const token = (t as Token); //TODO: why is array not already correctly typed? //@olaven
+        const token = (t as Token); 
         if (token.type !== 'code') {
           return --pending || done();
         }
@@ -1810,7 +1811,7 @@ function marked(src: string, optOrCallback?: MarkedOptions | MarkedCallback, cal
     return;
   }
   try {
-    //@ts-ignore: is defined in scope, but TS complains //@olaven
+    //@ts-ignore: is defined in scope, but TS complains 
     if (opt) opt = merge({}, marked.defaults, opt);
     //@ts-ignore
     return Parser.parse(Lexer.lex(src, opt), opt);
